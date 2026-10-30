@@ -1,431 +1,632 @@
-```html
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080a0d">
+<title>Subtitle Player</title>
 
-  <title>SRT Viewer</title>
+<style>
+:root {
+  --bg:#080a0d;
+  --panel:#11151a;
+  --border:#29313a;
+  --text:#f4f6f8;
+  --muted:#8d98a4;
+  --accent:#ffd43b;
+}
+* { box-sizing:border-box }
+body {
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:Arial,sans-serif;
+}
+button,input,textarea { font:inherit }
+.app {
+  max-width:760px;
+  margin:auto;
+  padding:14px 12px 30px;
+}
+header { margin-bottom:15px }
+h1 { font-size:25px;margin:0 0 5px }
+header p { color:var(--muted);font-size:12px;margin:0 }
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+.uploads {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-bottom:12px;
+}
+.drop {
+  background:var(--panel);
+  border:1px dashed #46515d;
+  border-radius:12px;
+  min-height:105px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:10px;
+  cursor:pointer;
+}
+.drop input { display:none }
+.drop .icon { font-size:25px;margin-bottom:7px }
+.drop strong { font-size:13px }
+.drop small {
+  color:var(--muted);
+  font-size:10px;
+  margin-top:5px;
+  word-break:break-word;
+}
 
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      color: #222;
-    }
+.card {
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  overflow:hidden;
+  margin-bottom:12px;
+}
+.player {
+  position:relative;
+  aspect-ratio:16/9;
+  background:#000;
+}
+video {
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:contain;
+}
+.overlay {
+  position:absolute;
+  bottom:9%;
+  left:4%;
+  right:4%;
+  text-align:center;
+  color:white;
+  font-weight:bold;
+  font-size:clamp(16px,4.5vw,28px);
+  line-height:1.35;
+  white-space:pre-line;
+  text-shadow:
+    2px 2px 3px black,
+    -2px -2px 3px black,
+    0 3px 10px black;
+  pointer-events:none;
+}
+.controls {
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:6px;
+  padding:9px;
+}
+button {
+  background:#1b222a;
+  color:white;
+  border:1px solid var(--border);
+  border-radius:8px;
+  min-height:42px;
+  padding:7px 5px;
+  font-size:11px;
+  cursor:pointer;
+}
+button:active { opacity:.7 }
+button.primary {
+  background:var(--accent);
+  color:#111;
+  font-weight:bold;
+}
+.time {
+  grid-column:1/-1;
+  text-align:center;
+  color:var(--muted);
+  font-size:11px;
+  padding:3px;
+  font-variant-numeric:tabular-nums;
+}
 
-    .container {
-      max-width: 1000px;
-      margin: 40px auto;
-      padding: 0 20px;
-    }
+.heading {
+  padding:12px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  justify-content:space-between;
+  font-size:13px;
+  font-weight:bold;
+}
+.heading small { color:var(--muted) }
 
-    h1 {
-      margin-bottom: 8px;
-    }
+.search {
+  width:100%;
+  padding:12px;
+  border:0;
+  border-bottom:1px solid var(--border);
+  background:#0c1014;
+  color:white;
+  outline:none;
+  font-size:14px;
+}
+.list {
+  max-height:420px;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.cue {
+  padding:12px;
+  border-bottom:1px solid #222831;
+  cursor:pointer;
+}
+.cue.active {
+  background:#29291f;
+  border-left:3px solid var(--accent);
+}
+.cue-time {
+  color:var(--accent);
+  font-size:10px;
+  font-family:monospace;
+  margin-bottom:6px;
+}
+.cue-text {
+  font-size:13px;
+  line-height:1.5;
+  white-space:pre-line;
+  overflow-wrap:anywhere;
+}
+.editor { padding:12px }
+.field-row {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+label {
+  display:block;
+  color:var(--muted);
+  font-size:10px;
+  margin-bottom:10px;
+}
+input[type=text],textarea {
+  width:100%;
+  display:block;
+  margin-top:5px;
+  background:#0c1014;
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:10px;
+  color:white;
+  font-size:14px;
+  outline:none;
+}
+textarea {
+  min-height:90px;
+  resize:vertical;
+}
+.actions {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:7px;
+}
+.actions button { min-height:43px }
+.status {
+  color:var(--muted);
+  font-size:11px;
+  padding:3px;
+  min-height:20px;
+}
+.status.error { color:#ff7373 }
 
-    .description {
-      color: #666;
-      margin-bottom: 24px;
-    }
-
-    .upload-box {
-      background: white;
-      border: 2px dashed #bbb;
-      border-radius: 12px;
-      padding: 40px;
-      text-align: center;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-
-    .upload-box:hover,
-    .upload-box.dragover {
-      border-color: #333;
-      background: #fafafa;
-    }
-
-    .upload-box input {
-      display: none;
-    }
-
-    .upload-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-
-    .upload-hint {
-      color: #888;
-      font-size: 14px;
-    }
-
-    .file-info {
-      margin-top: 20px;
-      display: none;
-      background: white;
-      border-radius: 10px;
-      padding: 16px 20px;
-      border: 1px solid #ddd;
-    }
-
-    .toolbar {
-      margin-top: 20px;
-      display: none;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .search {
-      flex: 1;
-      padding: 11px 14px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 14px;
-    }
-
-    .count {
-      color: #666;
-      font-size: 14px;
-      white-space: nowrap;
-    }
-
-    .subtitle-list {
-      margin-top: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .subtitle {
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      padding: 16px 18px;
-    }
-
-    .subtitle-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 10px;
-    }
-
-    .index {
-      background: #222;
-      color: white;
-      font-size: 12px;
-      font-weight: bold;
-      padding: 4px 8px;
-      border-radius: 6px;
-    }
-
-    .time {
-      font-family: monospace;
-      color: #777;
-      font-size: 13px;
-    }
-
-    .text {
-      font-size: 16px;
-      line-height: 1.6;
-      white-space: pre-wrap;
-    }
-
-    .empty {
-      display: none;
-      text-align: center;
-      color: #888;
-      padding: 40px;
-    }
-
-    .error {
-      display: none;
-      margin-top: 16px;
-      padding: 12px 16px;
-      background: #ffecec;
-      border: 1px solid #ffbaba;
-      color: #c00;
-      border-radius: 8px;
-    }
-  </style>
+@media(min-width:850px) {
+  .app { max-width:1200px;padding:28px }
+  .workspace {
+    display:grid;
+    grid-template-columns:1.4fr .8fr;
+    gap:14px;
+    align-items:start;
+  }
+  .uploads { margin-bottom:15px }
+  .list { max-height:600px }
+}
+</style>
 </head>
 
 <body>
+<div class="app">
 
-  <div class="container">
+<header>
+  <h1>Subtitle Player</h1>
+  <p>SBV / SRT · Video Player · Subtitle Editor</p>
+</header>
 
-    <h1>SRT Viewer</h1>
-    <div class="description">
-      Upload file <code>.srt</code> để xem nội dung subtitle.
+<div class="uploads">
+  <label class="drop" id="videoDrop">
+    <input type="file" id="videoInput" accept="video/*">
+    <span class="icon">🎬</span>
+    <strong>Upload video</strong>
+    <small id="videoName">MP4 / WebM / MOV · tối đa 50 MB</small>
+  </label>
+
+  <label class="drop" id="subDrop">
+    <input type="file" id="subInput" accept=".sbv,.srt">
+    <span class="icon">💬</span>
+    <strong>Upload subtitle</strong>
+    <small id="subName">Hỗ trợ SBV và SRT</small>
+  </label>
+</div>
+
+<div class="workspace">
+
+<div>
+  <div class="card">
+    <div class="player">
+      <video id="video" controls playsinline></video>
+      <div class="overlay" id="overlay"></div>
     </div>
 
-    <label class="upload-box" id="uploadBox">
-      <input type="file" id="fileInput" accept=".srt,text/plain">
-
-      <div class="upload-title">
-        📄 Chọn file SRT
-      </div>
-
-      <div class="upload-hint">
-        Click để chọn file hoặc kéo thả file vào đây
-      </div>
-    </label>
-
-    <div class="error" id="error"></div>
-
-    <div class="file-info" id="fileInfo"></div>
-
-    <div class="toolbar" id="toolbar">
-      <input
-        type="text"
-        id="searchInput"
-        class="search"
-        placeholder="Tìm kiếm nội dung subtitle..."
-      >
-
-      <div class="count" id="count"></div>
+    <div class="controls">
+      <button id="prev">⏮ Câu trước</button>
+      <button id="next">Câu sau ⏭</button>
+      <button id="back">−0.5s</button>
+      <button id="forward">+0.5s</button>
+      <div class="time" id="time">00:00.000 / 00:00.000</div>
     </div>
-
-    <div class="subtitle-list" id="subtitleList"></div>
-
-    <div class="empty" id="empty">
-      Không tìm thấy subtitle phù hợp.
-    </div>
-
   </div>
 
-  <script>
-    const fileInput = document.getElementById("fileInput");
-    const uploadBox = document.getElementById("uploadBox");
-    const fileInfo = document.getElementById("fileInfo");
-    const toolbar = document.getElementById("toolbar");
-    const searchInput = document.getElementById("searchInput");
-    const subtitleList = document.getElementById("subtitleList");
-    const count = document.getElementById("count");
-    const empty = document.getElementById("empty");
-    const error = document.getElementById("error");
+  <div class="card">
+    <div class="heading">
+      <span>✏️ Subtitle Editor</span>
+      <small id="selected">Chưa chọn câu</small>
+    </div>
+    <div class="editor">
+      <div class="field-row">
+        <label>START
+          <input id="start" type="text" placeholder="0:00:00.000">
+        </label>
+        <label>END
+          <input id="end" type="text" placeholder="0:00:00.000">
+        </label>
+      </div>
 
-    let subtitles = [];
+      <label>CONTENT
+        <textarea id="content" placeholder="Chọn subtitle để chỉnh sửa..."></textarea>
+      </label>
 
-    fileInput.addEventListener("change", (event) => {
-      const file = event.target.files[0];
+      <div class="actions">
+        <button class="primary" id="save">Lưu thay đổi</button>
+        <button id="add">+ Thêm câu</button>
+        <button id="delete">🗑 Xóa câu</button>
+        <button id="exportSBV">Export SBV</button>
+        <button id="exportSRT">Export SRT</button>
+      </div>
+    </div>
+  </div>
 
-      if (file) {
-        loadSRT(file);
-      }
+  <div class="status" id="status"></div>
+</div>
+
+<div class="card">
+  <div class="heading">
+    <span>📜 Subtitle List</span>
+    <small id="count">0 câu</small>
+  </div>
+  <input class="search" id="search" placeholder="🔎 Tìm kiếm subtitle...">
+  <div class="list" id="list">
+    <div class="cue-text" style="padding:20px;color:#888">
+      Upload file SBV hoặc SRT để xem nội dung.
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const video = $("video");
+const overlay = $("overlay");
+
+let videoURL = null;
+let cues = [];
+let selected = -1;
+let active = -1;
+let filename = "subtitle";
+
+function message(text,error=false) {
+  $("status").textContent = text;
+  $("status").className = "status"+(error?" error":"");
+}
+
+function escapeHTML(text) {
+  return String(text).replace(/[&<>"']/g,c=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",
+    '"':"&quot;","'":"&#39;"
+  })[c]);
+}
+
+function parseTime(value) {
+  const p = value.trim().replace(",",".").split(":").map(Number);
+  if(p.length===2) return p[0]*60+p[1];
+  if(p.length===3) return p[0]*3600+p[1]*60+p[2];
+  return NaN;
+}
+
+function timeString(seconds,comma=false) {
+  seconds=Math.max(0,seconds||0);
+  const h=Math.floor(seconds/3600);
+  const m=Math.floor(seconds%3600/60);
+  const s=Math.floor(seconds%60);
+  const ms=Math.round((seconds%1)*1000);
+  return `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}${comma?",":"."}${String(ms).padStart(3,"0")}`;
+}
+
+function parseSBV(text) {
+  const blocks=text.replace(/^\uFEFF/,"")
+    .replace(/\r/g,"")
+    .split(/\n\s*\n/);
+
+  return blocks.flatMap(block=>{
+    const lines=block.split("\n");
+    const i=lines.findIndex(x=>/^\s*\d+:\d{2}:\d{2}\.\d{1,3}\s*,/.test(x));
+
+    if(i<0) return [];
+
+    const parts=lines[i].split(",");
+    const start=parseTime(parts[0]);
+    const end=parseTime(parts.slice(1).join(","));
+
+    const text=lines.slice(i+1).join("\n").trim();
+
+    if(!Number.isFinite(start)||!Number.isFinite(end)||!text) return [];
+    return [{start,end,text}];
+  });
+}
+
+function parseSRT(text) {
+  return text.replace(/^\uFEFF/,"")
+    .replace(/\r/g,"")
+    .split(/\n\s*\n/)
+    .flatMap(block=>{
+      const lines=block.split("\n");
+      const i=lines.findIndex(x=>x.includes("-->"));
+      if(i<0) return [];
+
+      const parts=lines[i].split("-->");
+      const start=parseTime(parts[0]);
+      const end=parseTime(parts[1]);
+      const text=lines.slice(i+1).join("\n").trim();
+
+      if(!Number.isFinite(start)||!Number.isFinite(end)||!text) return [];
+      return [{start,end,text}];
     });
+}
 
-    uploadBox.addEventListener("dragover", (event) => {
-      event.preventDefault();
-      uploadBox.classList.add("dragover");
-    });
+$("videoInput").onchange=e=>{
+  const file=e.target.files[0];
+  if(!file)return;
 
-    uploadBox.addEventListener("dragleave", () => {
-      uploadBox.classList.remove("dragover");
-    });
+  if(file.size>50*1024*1024) {
+    message("Video vượt quá giới hạn 50 MB.",true);
+    return;
+  }
 
-    uploadBox.addEventListener("drop", (event) => {
-      event.preventDefault();
+  if(videoURL) URL.revokeObjectURL(videoURL);
+  videoURL=URL.createObjectURL(file);
+  video.src=videoURL;
+  $("videoName").textContent=file.name;
+  message("Đã tải video.");
+  e.target.value="";
+};
 
-      uploadBox.classList.remove("dragover");
+$("subInput").onchange=async e=>{
+  const file=e.target.files[0];
+  if(!file)return;
 
-      const file = event.dataTransfer.files[0];
+  try {
+    const text=await file.text();
+    const ext=file.name.split(".").pop().toLowerCase();
 
-      if (file) {
-        loadSRT(file);
-      }
-    });
-
-    searchInput.addEventListener("input", () => {
-      renderSubtitles(searchInput.value);
-    });
-
-    async function loadSRT(file) {
-      hideError();
-
-      if (!file.name.toLowerCase().endsWith(".srt")) {
-        showError("Vui lòng chọn file .srt");
-        return;
-      }
-
-      try {
-        const buffer = await file.arrayBuffer();
-
-        // UTF-8
-        let text = new TextDecoder("utf-8").decode(buffer);
-
-        // Remove UTF-8 BOM
-        text = text.replace(/^\uFEFF/, "");
-
-        subtitles = parseSRT(text);
-
-        if (!subtitles.length) {
-          showError("Không tìm thấy subtitle hợp lệ trong file.");
-          return;
-        }
-
-        fileInfo.style.display = "block";
-        fileInfo.innerHTML = `
-          <strong>${escapeHTML(file.name)}</strong>
-          <br>
-          <small>
-            ${(file.size / 1024).toFixed(1)} KB
-            · ${subtitles.length} subtitle
-          </small>
-        `;
-
-        toolbar.style.display = "flex";
-
-        searchInput.value = "";
-
-        renderSubtitles();
-
-      } catch (err) {
-        console.error(err);
-        showError("Không thể đọc file SRT.");
-      }
+    if(!["sbv","srt"].includes(ext)) {
+      message("Chỉ hỗ trợ SBV và SRT.",true);
+      return;
     }
 
-    function parseSRT(content) {
-      // Normalize line endings
-      content = content
-        .replace(/\r\n/g, "\n")
-        .replace(/\r/g, "\n");
+    cues=ext==="sbv"?parseSBV(text):parseSRT(text);
 
-      // Split subtitle blocks
-      const blocks = content
-        .split(/\n\s*\n/)
-        .map(block => block.trim())
-        .filter(Boolean);
-
-      const result = [];
-
-      for (const block of blocks) {
-        const lines = block.split("\n");
-
-        if (lines.length < 3) {
-          continue;
-        }
-
-        let index = lines[0].trim();
-        let timeLineIndex = 1;
-
-        // Handle SRT without numeric index
-        if (!/^\d+$/.test(index)) {
-          index = result.length + 1;
-          timeLineIndex = 0;
-        }
-
-        const timeLine = lines[timeLineIndex];
-
-        if (!timeLine || !timeLine.includes("-->")) {
-          continue;
-        }
-
-        const [start, end] = timeLine
-          .split("-->")
-          .map(s => s.trim());
-
-        const text = lines
-          .slice(timeLineIndex + 1)
-          .join("\n")
-          .trim();
-
-        if (!text) {
-          continue;
-        }
-
-        result.push({
-          index,
-          start,
-          end,
-          text
-        });
-      }
-
-      return result;
+    if(!cues.length) {
+      message("Không tìm thấy subtitle hợp lệ.",true);
+      return;
     }
 
-    function renderSubtitles(keyword = "") {
-      const query = keyword.trim().toLowerCase();
+    filename=file.name.replace(/\.(sbv|srt)$/i,"");
+    selected=-1;
+    active=-1;
+    $("subName").textContent=`${file.name} · ${cues.length} câu`;
+    render();
+    clearEditor();
+    message(`Đã tải ${cues.length} subtitle.`);
+  } catch(err) {
+    message("Không thể đọc file subtitle.",true);
+  }
+  e.target.value="";
+};
 
-      const filtered = subtitles.filter(subtitle => {
-        if (!query) {
-          return true;
-        }
+function render() {
+  const query=$("search").value.toLowerCase().trim();
 
-        return subtitle.text.toLowerCase().includes(query);
-      });
+  const visible=cues.map((cue,index)=>({cue,index}))
+    .filter(x=>x.cue.text.toLowerCase().includes(query));
 
-      subtitleList.innerHTML = "";
+  $("count").textContent=`${cues.length} câu`;
 
-      count.textContent =
-        `${filtered.length} / ${subtitles.length} subtitle`;
+  $("list").innerHTML=visible.length?visible.map(({cue,index})=>`
+    <div class="cue ${index===active?"active":""}" data-index="${index}">
+      <div class="cue-time">
+        ${timeString(cue.start)} → ${timeString(cue.end)}
+      </div>
+      <div class="cue-text">${escapeHTML(cue.text)}</div>
+    </div>
+  `).join(""):`<div class="cue-text" style="padding:20px;color:#888">Không tìm thấy subtitle.</div>`;
 
-      if (!filtered.length) {
-        empty.style.display = "block";
-        return;
-      }
+  document.querySelectorAll(".cue[data-index]").forEach(el=>{
+    el.onclick=()=>select(Number(el.dataset.index),true);
+  });
+}
 
-      empty.style.display = "none";
+function clearEditor() {
+  $("start").value="";
+  $("end").value="";
+  $("content").value="";
+  $("selected").textContent="Chưa chọn câu";
+}
 
-      const fragment = document.createDocumentFragment();
+function select(index,seek=false) {
+  if(index<0||index>=cues.length)return;
 
-      for (const subtitle of filtered) {
-        const item = document.createElement("div");
+  selected=index;
+  const cue=cues[index];
 
-        item.className = "subtitle";
+  $("start").value=timeString(cue.start);
+  $("end").value=timeString(cue.end);
+  $("content").value=cue.text;
+  $("selected").textContent=`Câu #${index+1}`;
 
-        item.innerHTML = `
-          <div class="subtitle-header">
-            <span class="index">
-              #${escapeHTML(String(subtitle.index))}
-            </span>
+  if(seek) {
+    video.currentTime=cue.start;
+    video.play().catch(()=>{});
+  }
 
-            <span class="time">
-              ${escapeHTML(subtitle.start)}
-              →
-              ${escapeHTML(subtitle.end)}
-            </span>
-          </div>
+  render();
+}
 
-          <div class="text">
-            ${escapeHTML(subtitle.text)}
-          </div>
-        `;
+$("save").onclick=()=>{
+  if(selected<0)return message("Hãy chọn một câu trước.",true);
 
-        fragment.appendChild(item);
-      }
+  const start=parseTime($("start").value);
+  const end=parseTime($("end").value);
+  const text=$("content").value.trim();
 
-      subtitleList.appendChild(fragment);
-    }
+  if(!Number.isFinite(start)||!Number.isFinite(end)||end<=start||!text)
+    return message("Timestamp hoặc nội dung không hợp lệ.",true);
 
-    function escapeHTML(value) {
-      return value
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-    }
+  const cue={start,end,text};
+  cues[selected]=cue;
+  cues.sort((a,b)=>a.start-b.start);
 
-    function showError(message) {
-      error.textContent = message;
-      error.style.display = "block";
-    }
+  selected=cues.indexOf(cue);
+  render();
+  select(selected);
+  message("Đã lưu thay đổi.");
+};
 
-    function hideError() {
-      error.style.display = "none";
-    }
-  </script>
+$("add").onclick=()=>{
+  const i=selected<0?cues.length:selected+1;
+  const previous=cues[i-1];
+  const next=cues[i];
 
+  const start=previous?previous.end:video.currentTime||0;
+  const end=next?Math.max(start+.5,next.start):start+2;
+
+  cues.splice(i,0,{start,end,text:"Subtitle mới"});
+  render();
+  select(i);
+  $("content").focus();
+};
+
+$("delete").onclick=()=>{
+  if(selected<0)return message("Hãy chọn một câu trước.",true);
+
+  cues.splice(selected,1);
+
+  if(!cues.length) {
+    selected=-1;
+    clearEditor();
+  } else {
+    select(Math.min(selected,cues.length-1));
+  }
+
+  render();
+  message("Đã xóa subtitle.");
+};
+
+function exportFile(ext) {
+  if(!cues.length)return message("Chưa có subtitle.",true);
+
+  const output=cues.map((cue,i)=>{
+    if(ext==="sbv")
+      return `${timeString(cue.start)},${timeString(cue.end)}\n${cue.text}`;
+
+    return `${i+1}\n${timeString(cue.start,true)} --> ${timeString(cue.end,true)}\n${cue.text}`;
+  }).join("\n\n");
+
+  const blob=new Blob([output+"\n"],{type:"text/plain;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+
+  a.href=url;
+  a.download=filename+"."+ext;
+  a.click();
+
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  message("Đã export "+ext.toUpperCase()+".");
+}
+
+$("exportSBV").onclick=()=>exportFile("sbv");
+$("exportSRT").onclick=()=>exportFile("srt");
+
+$("search").oninput=render;
+
+function update() {
+  const t=video.currentTime||0;
+  let found=cues.findIndex(c=>t>=c.start&&t<c.end);
+
+  if(found!==active) {
+    active=found;
+    overlay.textContent=found>=0?cues[found].text:"";
+    render();
+  }
+
+  const duration=video.duration||0;
+  $("time").textContent=
+    `${timeString(t)} / ${timeString(duration)}`;
+}
+
+video.addEventListener("timeupdate",update);
+video.addEventListener("seeked",update);
+video.addEventListener("loadedmetadata",update);
+
+$("prev").onclick=()=>{
+  if(!cues.length)return;
+  let i=cues.findIndex(c=>video.currentTime>=c.start&&video.currentTime<c.end);
+  if(i<0)i=cues.findIndex(c=>c.start>video.currentTime);
+  if(i<0)i=cues.length;
+  select(Math.max(0,i-1),true);
+};
+
+$("next").onclick=()=>{
+  if(!cues.length)return;
+  let i=cues.findIndex(c=>video.currentTime>=c.start&&video.currentTime<c.end);
+  if(i<0)i=cues.findIndex(c=>c.start>video.currentTime);
+  else i++;
+  if(i<0)i=cues.length-1;
+  select(Math.min(cues.length-1,i),true);
+};
+
+$("back").onclick=()=>video.currentTime=Math.max(0,video.currentTime-.5);
+$("forward").onclick=()=>video.currentTime+=.5;
+
+document.addEventListener("keydown",e=>{
+  const tag=document.activeElement.tagName.toLowerCase();
+  if(tag==="input"||tag==="textarea")return;
+
+  if(e.code==="Space") {
+    e.preventDefault();
+    video.paused?video.play():video.pause();
+  }
+  if(e.key==="ArrowLeft")video.currentTime=Math.max(0,video.currentTime-.5);
+  if(e.key==="ArrowRight")video.currentTime+=.5;
+});
+
+</script>
 </body>
 </html>
-```
