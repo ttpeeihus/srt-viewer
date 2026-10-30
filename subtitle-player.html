@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subtitle Player — SBV / SRT</title>
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --panel: #12161b;
+      --panel-2: #181d23;
+      --border: #29313a;
+      --text: #f2f5f7;
+      --muted: #8e99a5;
+      --accent: #ffd43b;
+      --accent-text: #161616;
+      --danger: #ff6b6b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input, textarea { font: inherit; }
+
+    .app {
+      width: min(1500px, 100%);
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 20px;
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: clamp(26px, 4vw, 40px);
+      letter-spacing: -1px;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .privacy {
+      color: #aeb7c0;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .upload-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .dropzone {
+      min-height: 130px;
+      border: 1px dashed #3b4651;
+      border-radius: 14px;
+      background: var(--panel);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      cursor: pointer;
+      transition: .18s ease;
+    }
+
+    .dropzone:hover,
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: #171b20;
+      transform: translateY(-1px);
+    }
+
+    .dropzone input { display: none; }
+
+    .drop-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .drop-title {
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .drop-hint {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(340px, .55fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .video-card {
+      position: relative;
+      background: #050607;
+    }
+
+    .video-wrap {
+      position: relative;
+      width: 100%;
+      background: #050607;
+      aspect-ratio: 16 / 9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .video-subtitle {
+      position: absolute;
+      left: 4%;
+      right: 4%;
+      bottom: 6%;
+      text-align: center;
+      pointer-events: none;
+      color: white;
+      font-size: clamp(17px, 2.1vw, 31px);
+      line-height: 1.35;
+      font-weight: 700;
+      text-shadow:
+        0 2px 2px #000,
+        2px 0 2px #000,
+        -2px 0 2px #000,
+        0 -2px 2px #000,
+        0 4px 12px rgba(0,0,0,.9);
+      white-space: pre-line;
+    }
+
+    .empty-video {
+      position: absolute;
+      color: #58636e;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .controls {
+      padding: 12px 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      border-top: 1px solid var(--border);
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 11px;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: #596572; }
+    button.primary {
+      background: var(--accent);
+      color: var(--accent-text);
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+
+    button.danger { color: #ff9999; }
+
+    .time {
+      margin-left: auto;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      font-size: 13px;
+    }
+
+    .panel-header {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-header strong { font-size: 14px; }
+
+    .panel-header .count {
+      color: var(--muted);
+      font-size: 12px;
+      margin-left: auto;
+    }
+
+    .search {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      background: #0f1317;
+      color: var(--text);
+      outline: none;
+      padding: 11px 14px;
+    }
+
+    .search:focus { border-color: #5b6671; }
+
+    .subtitle-list {
+      max-height: 600px;
+      overflow: auto;
+    }
+
+    .cue {
+      padding: 12px 14px;
+      border-bottom: 1px solid #20262d;
+      cursor: pointer;
+      transition: background .12s ease;
+    }
+
+    .cue:hover { background: #171c21; }
+    .cue.active {
+      background: #27291e;
+      box-shadow: inset 3px 0 var(--accent);
+    }
+
+    .cue-time {
+      color: var(--accent);
+      font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+      margin-bottom: 6px;
+    }
+
+    .cue-text {
+      white-space: pre-line;
+      line-height: 1.45;
+      font-size: 14px;
+    }
+
+    .editor {
+      margin-top: 16px;
+    }
+
+    .editor-body {
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    label {
+      color: var(--muted);
+      font-size: 11px;
+      display: grid;
+      gap: 5px;
+    }
+
+    input[type="text"], textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #0d1115;
+      color: var(--text);
+      padding: 9px 10px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    input[type="text"]:focus, textarea:focus {
+      border-color: #66727e;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .status {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      min-height: 18px;
+    }
+
+    .status.error { color: var(--danger); }
+
+    .empty {
+      padding: 30px 14px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      .app { padding: 16px; }
+      header { align-items: flex-start; flex-direction: column; }
+      .privacy { text-align: left; }
+      .upload-grid { grid-template-columns: 1fr; }
+      .workspace { grid-template-columns: 1fr; }
+      .subtitle-list { max-height: 430px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Subtitle Player</h1>
+      <p class="subtitle">Video + SBV / SRT • chạy hoàn toàn local trên trình duyệt</p>
+    </div>
+    <div class="privacy">Không upload file lên server<br>Video & subtitle chỉ nằm trong tab này.</div>
+  </header>
+
+  <section class="upload-grid">
+    <label class="dropzone" id="videoDrop">
+      <input id="videoInput" type="file" accept="video/*">
+      <div class="drop-icon">🎬</div>
+      <div class="drop-title">Upload video</div>
+      <div class="drop-hint" id="videoHint">MP4 / WebM / MOV • khuyến nghị &lt; 50 MB</div>
+    </label>
+
+    <label class="dropzone" id="subDrop">
+      <input id="subInput" type="file" accept=".sbv,.srt,text/plain">
+      <div class="drop-icon">💬</div>
+      <div class="drop-title">Upload subtitle</div>
+      <div class="drop-hint" id="subHint">Hỗ trợ .SBV và .SRT</div>
+    </label>
+  </section>
+
+  <section class="workspace">
+    <div>
+      <div class="card video-card">
+        <div class="video-wrap">
+          <video id="video" controls playsinline preload="metadata"></video>
+          <div class="empty-video" id="emptyVideo">Chọn video để bắt đầu</div>
+          <div class="video-subtitle" id="videoSubtitle"></div>
+        </div>
+
+        <div class="controls">
+          <button id="prevBtn">⏮ Câu trước</button>
+          <button id="nextBtn">Câu sau ⏭</button>
+          <button id="minusBtn">−0.5s</button>
+          <button id="plusBtn">+0.5s</button>
+          <button id="fullscreenBtn">⛶ Fullscreen</button>
+          <span class="time" id="timeLabel">00:00.000 / 00:00.000</span>
+        </div>
+      </div>
+
+      <div class="card editor">
+        <div class="panel-header">
+          <strong>Subtitle editor</strong>
+          <span class="count" id="selectedLabel">Chưa chọn câu</span>
+        </div>
+        <div class="editor-body">
+          <div class="field-row">
+            <label>
+              START
+              <input id="startInput" type="text" placeholder="0:00:00.000">
+            </label>
+            <label>
+              END
+              <input id="endInput" type="text" placeholder="0:00:00.000">
+            </label>
+          </div>
+
+          <label>
+            TEXT
+            <textarea id="textInput" placeholder="Chọn một subtitle bên phải để chỉnh sửa..."></textarea>
+          </label>
+
+          <div class="actions">
+            <button class="primary" id="saveBtn">Lưu thay đổi</button>
+            <button id="splitBtn">Thêm câu mới sau câu này</button>
+            <button class="danger" id="deleteBtn">Xóa câu</button>
+            <button id="exportSbvBtn">Export .SBV</button>
+            <button id="exportSrtBtn">Export .SRT</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <aside class="card">
+      <div class="panel-header">
+        <strong>Subtitle list</strong>
+        <span class="count" id="cueCount">0 câu</span>
+      </div>
+      <input class="search" id="searchInput" type="search" placeholder="🔎 Tìm subtitle...">
+      <div class="subtitle-list" id="subtitleList">
+        <div class="empty">Upload SBV hoặc SRT để hiển thị subtitle.</div>
+      </div>
+    </aside>
+  </section>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
+
+  const $ = (id) => document.getElementById(id);
+  const video = $("video");
+  const videoInput = $("videoInput");
+  const subInput = $("subInput");
+  const videoDrop = $("videoDrop");
+  const subDrop = $("subDrop");
+  const videoHint = $("videoHint");
+  const subHint = $("subHint");
+  const videoSubtitle = $("videoSubtitle");
+  const subtitleList = $("subtitleList");
+  const cueCount = $("cueCount");
+  const searchInput = $("searchInput");
+  const status = $("status");
+  const timeLabel = $("timeLabel");
+  const emptyVideo = $("emptyVideo");
+
+  const startInput = $("startInput");
+  const endInput = $("endInput");
+  const textInput = $("textInput");
+  const selectedLabel = $("selectedLabel");
+
+  let videoUrl = null;
+  let cues = [];
+  let selectedIndex = -1;
+  let currentCueIndex = -1;
+  let subtitleFileName = "subtitle";
+  let rafId = null;
+
+  function setStatus(message, isError = false) {
+    status.textContent = message || "";
+    status.className = "status" + (isError ? " error" : "");
+  }
+
+  function escapeHtml(value) {
+    return String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function formatTime(seconds, ms = true) {
+    seconds = Math.max(0, Number(seconds) || 0);
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    const milli = Math.round((seconds - Math.floor(seconds)) * 1000);
+
+    return ms
+      ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(milli).padStart(3, "0")}`
+      : `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  }
+
+  function parseTimestamp(value) {
+    const raw = String(value).trim().replace(",", ".");
+    const parts = raw.split(":").map(Number);
+
+    if (parts.some(Number.isNaN) || parts.length < 2 || parts.length > 3) {
+      return NaN;
+    }
+
+    if (parts.length === 2) {
+      return parts[0] * 60 + parts[1];
+    }
+
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+
+  function parseSBV(text) {
+    const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/^\uFEFF/, "");
+    const blocks = normalized.split(/\n\s*\n/);
+    const result = [];
+
+    for (const block of blocks) {
+      const lines = block.split("\n");
+      if (!lines.length) continue;
+
+      const timeLineIndex = lines.findIndex(line => line.includes(",") && !line.includes("-->"));
+      if (timeLineIndex < 0) continue;
+
+      const timeLine = lines[timeLineIndex];
+      const comma = timeLine.indexOf(",");
+      const startRaw = timeLine.slice(0, comma).trim();
+      const endRaw = timeLine.slice(comma + 1).trim();
+
+      const start = parseTimestamp(startRaw);
+      const end = parseTimestamp(endRaw);
+
+      if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+
+      const cueText = lines.slice(timeLineIndex + 1).join("\n").trim();
+      if (!cueText) continue;
+
+      result.push({ start, end, text: cueText });
+    }
+
+    return result;
+  }
+
+  function parseSRT(text) {
+    const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/^\uFEFF/, "");
+    const blocks = normalized.split(/\n\s*\n/);
+    const result = [];
+
+    for (const block of blocks) {
+      const lines = block.split("\n").map(line => line.trimEnd());
+      const timeLineIndex = lines.findIndex(line => line.includes("-->"));
+      if (timeLineIndex < 0) continue;
+
+      const [startRaw, endRaw] = lines[timeLineIndex].split("-->").map(s => s.trim());
+      const start = parseTimestamp(startRaw);
+      const end = parseTimestamp(endRaw);
+
+      if (!Number.isFinite(start) || !Number.isFinite(end)) continue;
+
+      const cueText = lines.slice(timeLineIndex + 1).join("\n").trim();
+      if (!cueText) continue;
+
+      result.push({ start, end, text: cueText });
+    }
+
+    return result;
+  }
+
+  function parseSubtitle(text, extension) {
+    return extension.toLowerCase() === ".srt"
+      ? parseSRT(text)
+      : parseSBV(text);
+  }
+
+  async function loadVideo(file) {
+    if (!file.type.startsWith("video/") && !/\.(mp4|webm|mov|m4v|ogv)$/i.test(file.name)) {
+      setStatus("File này không giống file video.", true);
+      return;
+    }
+
+    if (file.size > MAX_VIDEO_SIZE) {
+      setStatus(`Video ${(file.size / 1024 / 1024).toFixed(1)} MB vượt giới hạn 50 MB.`, true);
+      return;
+    }
+
+    if (videoUrl) URL.revokeObjectURL(videoUrl);
+    videoUrl = URL.createObjectURL(file);
+
+    video.src = videoUrl;
+    video.load();
+    emptyVideo.style.display = "none";
+    videoHint.textContent = `${file.name} • ${(file.size / 1024 / 1024).toFixed(1)} MB`;
+    setStatus(`Đã tải video: ${file.name}`);
+  }
+
+  async function loadSubtitle(file) {
+    if (!/\.(sbv|srt)$/i.test(file.name)) {
+      setStatus("Chỉ hỗ trợ .SBV và .SRT.", true);
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const extension = file.name.slice(file.name.lastIndexOf("."));
+      const parsed = parseSubtitle(text, extension);
+
+      if (!parsed.length) {
+        setStatus("Không tìm thấy subtitle hợp lệ trong file.", true);
+        return;
+      }
+
+      cues = parsed;
+      subtitleFileName = file.name.replace(/\.(sbv|srt)$/i, "");
+      selectedIndex = -1;
+      currentCueIndex = -1;
+
+      subHint.textContent = `${file.name} • ${cues.length} câu`;
+      renderList();
+      clearEditor();
+      setStatus(`Đã đọc ${cues.length} subtitle từ ${file.name}`);
+      updateSubtitle();
+    } catch (error) {
+      console.error(error);
+      setStatus("Không thể đọc file subtitle.", true);
+    }
+  }
+
+  function renderList() {
+    const query = searchInput.value.trim().toLowerCase();
+
+    const visible = cues
+      .map((cue, index) => ({ cue, index }))
+      .filter(({ cue }) => !query || cue.text.toLowerCase().includes(query));
+
+    cueCount.textContent = `${cues.length} câu`;
+
+    if (!visible.length) {
+      subtitleList.innerHTML = `<div class="empty">Không tìm thấy subtitle.</div>`;
+      return;
+    }
+
+    subtitleList.innerHTML = visible.map(({ cue, index }) => `
+      <div class="cue ${index === currentCueIndex ? "active" : ""}" data-index="${index}">
+        <div class="cue-time">${escapeHtml(formatTime(cue.start))} → ${escapeHtml(formatTime(cue.end))}</div>
+        <div class="cue-text">${escapeHtml(cue.text)}</div>
+      </div>
+    `).join("");
+
+    subtitleList.querySelectorAll(".cue").forEach(el => {
+      el.addEventListener("click", () => {
+        const index = Number(el.dataset.index);
+        selectCue(index, true);
+      });
+    });
+  }
+
+  function selectCue(index, seek = false) {
+    if (index < 0 || index >= cues.length) return;
+
+    selectedIndex = index;
+    const cue = cues[index];
+
+    startInput.value = formatTime(cue.start);
+    endInput.value = formatTime(cue.end);
+    textInput.value = cue.text;
+    selectedLabel.textContent = `Câu #${index + 1}`;
+
+    if (seek && Number.isFinite(video.duration)) {
+      video.currentTime = cue.start;
+      video.play().catch(() => {});
+    }
+
+    renderList();
+  }
+
+  function clearEditor() {
+    startInput.value = "";
+    endInput.value = "";
+    textInput.value = "";
+    selectedLabel.textContent = "Chưa chọn câu";
+  }
+
+  function saveSelectedCue() {
+    if (selectedIndex < 0) {
+      setStatus("Hãy chọn một subtitle trước.", true);
+      return;
+    }
+
+    const start = parseTimestamp(startInput.value);
+    const end = parseTimestamp(endInput.value);
+    const text = textInput.value.trim();
+
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start || !text) {
+      setStatus("Timestamp hoặc nội dung không hợp lệ.", true);
+      return;
+    }
+
+    cues[selectedIndex] = { start, end, text };
+    cues.sort((a, b) => a.start - b.start);
+
+    // Find the edited cue again after sorting.
+    selectedIndex = cues.findIndex(c => c.start === start && c.end === end && c.text === text);
+
+    renderList();
+    selectCue(selectedIndex, false);
+    updateSubtitle();
+    setStatus("Đã lưu thay đổi.");
+  }
+
+  function addCueAfter() {
+    let insertAt = selectedIndex >= 0 ? selectedIndex + 1 : cues.length;
+    const previous = cues[insertAt - 1];
+    const next = cues[insertAt];
+
+    const start = previous ? previous.end : (video.currentTime || 0);
+    const end = next ? Math.max(start + 1, next.start) : start + 2;
+
+    cues.splice(insertAt, 0, {
+      start,
+      end,
+      text: "Subtitle mới"
+    });
+
+    renderList();
+    selectCue(insertAt, false);
+    textInput.focus();
+    textInput.select();
+    setStatus("Đã thêm subtitle mới.");
+  }
+
+  function deleteSelectedCue() {
+    if (selectedIndex < 0) {
+      setStatus("Hãy chọn một subtitle trước.", true);
+      return;
+    }
+
+    const deleted = selectedIndex + 1;
+    cues.splice(selectedIndex, 1);
+
+    if (!cues.length) {
+      selectedIndex = -1;
+      currentCueIndex = -1;
+      clearEditor();
+    } else {
+      selectedIndex = Math.min(selectedIndex, cues.length - 1);
+      selectCue(selectedIndex, false);
+    }
+
+    renderList();
+    updateSubtitle();
+    setStatus(`Đã xóa câu #${deleted}.`);
+  }
+
+  function updateSubtitle() {
+    const time = video.currentTime || 0;
+
+    let found = -1;
+
+    for (let i = 0; i < cues.length; i++) {
+      if (time >= cues[i].start && time < cues[i].end) {
+        found = i;
+        break;
+      }
+    }
+
+    if (found !== currentCueIndex) {
+      currentCueIndex = found;
+      videoSubtitle.textContent = found >= 0 ? cues[found].text : "";
+      renderList();
+    }
+
+    timeLabel.textContent = `${formatTime(time)} / ${formatTime(video.duration || 0)}`;
+
+    rafId = requestAnimationFrame(updateSubtitle);
+  }
+
+  function stopAnimation() {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  }
+
+  function seekRelative(delta) {
+    video.currentTime = Math.max(0, (video.currentTime || 0) + delta);
+  }
+
+  function jumpCue(direction) {
+    if (!cues.length) return;
+
+    const time = video.currentTime || 0;
+
+    let index = cues.findIndex(cue => time >= cue.start && time < cue.end);
+
+    if (index === -1) {
+      index = cues.findIndex(cue => cue.start > time);
+      if (index === -1) index = cues.length - 1;
+    } else {
+      index += direction;
+    }
+
+    index = Math.max(0, Math.min(cues.length - 1, index));
+    selectCue(index, true);
+  }
+
+  function downloadText(text, extension) {
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+
+    a.href = url;
+    a.download = `${subtitleFileName || "subtitle"}${extension}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    URL.revokeObjectURL(url);
+  }
+
+  function exportSBV() {
+    if (!cues.length) {
+      setStatus("Chưa có subtitle để export.", true);
+      return;
+    }
+
+    const output = cues.map(cue =>
+      `${formatTime(cue.start)},${formatTime(cue.end)}\n${cue.text}`
+    ).join("\n\n");
+
+    downloadText(output + "\n", ".sbv");
+    setStatus("Đã export SBV.");
+  }
+
+  function exportSRT() {
+    if (!cues.length) {
+      setStatus("Chưa có subtitle để export.", true);
+      return;
+    }
+
+    const output = cues.map((cue, index) =>
+      `${index + 1}\n${formatTime(cue.start).replace(".", ",")} --> ${formatTime(cue.end).replace(".", ",")}\n${cue.text}`
+    ).join("\n\n");
+
+    downloadText(output + "\n", ".srt");
+    setStatus("Đã export SRT.");
+  }
+
+  function setupDropzone(dropzone, input, handler) {
+    ["dragenter", "dragover"].forEach(eventName => {
+      dropzone.addEventListener(eventName, event => {
+        event.preventDefault();
+        dropzone.classList.add("dragover");
+      });
+    });
+
+    ["dragleave", "drop"].forEach(eventName => {
+      dropzone.addEventListener(eventName, event => {
+        event.preventDefault();
+        dropzone.classList.remove("dragover");
+      });
+    });
+
+    dropzone.addEventListener("drop", event => {
+      const file = event.dataTransfer.files[0];
+      if (file) handler(file);
+    });
+
+    input.addEventListener("change", () => {
+      const file = input.files[0];
+      if (file) handler(file);
+      input.value = "";
+    });
+  }
+
+  setupDropzone(videoDrop, videoInput, loadVideo);
+  setupDropzone(subDrop, subInput, loadSubtitle);
+
+  searchInput.addEventListener("input", renderList);
+
+  $("saveBtn").addEventListener("click", saveSelectedCue);
+  $("splitBtn").addEventListener("click", addCueAfter);
+  $("deleteBtn").addEventListener("click", deleteSelectedCue);
+  $("exportSbvBtn").addEventListener("click", exportSBV);
+  $("exportSrtBtn").addEventListener("click", exportSRT);
+
+  $("prevBtn").addEventListener("click", () => jumpCue(-1));
+  $("nextBtn").addEventListener("click", () => jumpCue(1));
+  $("minusBtn").addEventListener("click", () => seekRelative(-0.5));
+  $("plusBtn").addEventListener("click", () => seekRelative(0.5));
+
+  $("fullscreenBtn").addEventListener("click", async () => {
+    const target = document.querySelector(".video-card");
+    if (!document.fullscreenElement) {
+      await target.requestFullscreen?.();
+    } else {
+      await document.exitFullscreen?.();
+    }
+  });
+
+  video.addEventListener("loadedmetadata", () => {
+    emptyVideo.style.display = "none";
+  });
+
+  video.addEventListener("error", () => {
+    if (video.src) setStatus("Trình duyệt không thể phát định dạng video này.", true);
+  });
+
+  document.addEventListener("keydown", event => {
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    const editing = tag === "input" || tag === "textarea";
+
+    if (event.code === "Space" && !editing) {
+      event.preventDefault();
+      if (video.paused) video.play();
+      else video.pause();
+    }
+
+    if (event.key === "ArrowLeft" && !editing) {
+      event.preventDefault();
+      seekRelative(-0.5);
+    }
+
+    if (event.key === "ArrowRight" && !editing) {
+      event.preventDefault();
+      seekRelative(0.5);
+    }
+
+    if (event.key === "ArrowUp" && !editing) {
+      event.preventDefault();
+      jumpCue(-1);
+    }
+
+    if (event.key === "ArrowDown" && !editing) {
+      event.preventDefault();
+      jumpCue(1);
+    }
+  });
+
+  video.addEventListener("timeupdate", updateSubtitle);
+  video.addEventListener("loadedmetadata", updateSubtitle);
+
+  // Start subtitle/time loop.
+  stopAnimation();
+  updateSubtitle();
+
+  window.addEventListener("beforeunload", () => {
+    stopAnimation();
+    if (videoUrl) URL.revokeObjectURL(videoUrl);
+  });
+})();
+</script>
+</body>
+</html>
